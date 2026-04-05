@@ -225,10 +225,27 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
-const INSTRUCTOR_PASSWORD = 'Emmy0917!';
-const CURRENT_SEMESTER = '2026-Fall';
+const INSTRUCTOR_PASSWORD = 'YOUR_INSTRUCTOR_PASSWORD';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let CURRENT_SEMESTER = '2026-Fall'; // fallback, overridden by DB
+
+async function loadCurrentSemester() {
+  try {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'current_semester')
+      .single();
+    if (data?.value) {
+      CURRENT_SEMESTER = data.value;
+      // Update the filter button label
+      const btn = document.getElementById('filterSemester');
+      if (btn) btn.textContent = `This Semester (${CURRENT_SEMESTER})`;
+    }
+  } catch(e) { /* use fallback */ }
+}
 
 // Tier/skill/level structure for progress display
 const TIER_STRUCTURE = [
@@ -263,7 +280,7 @@ window.checkPw = function() {
   if (pw === INSTRUCTOR_PASSWORD) {
     document.getElementById('authWrap').style.display = 'none';
     document.getElementById('dashWrap').style.display = 'block';
-    loadDashboard();
+    loadCurrentSemester().then(() => loadDashboard());
   } else {
     const err = document.getElementById('authErr');
     err.textContent = 'Incorrect password.';

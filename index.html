@@ -610,7 +610,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 // ══════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
-const INSTRUCTOR_PASSWORD = 'Emmy0917!';
+const INSTRUCTOR_PASSWORD = 'YOUR_INSTRUCTOR_PASSWORD';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -873,8 +873,19 @@ function updateStreak() {
 // ══════════════════════════════════════════════════════
 // LEADERBOARD
 // ══════════════════════════════════════════════════════
-const CURRENT_SEMESTER = '2026-Fall';
+let CURRENT_SEMESTER = '2026-Fall'; // fallback, overridden by DB
 let currentLbTab = 'semester';
+
+async function loadCurrentSemester() {
+  try {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'current_semester')
+      .single();
+    if (data?.value) CURRENT_SEMESTER = data.value;
+  } catch(e) { /* use fallback */ }
+}
 
 function switchLbTab(tab) {
   currentLbTab = tab;
@@ -928,7 +939,7 @@ async function loadLeaderboard() {
 // APP LAUNCH
 // ══════════════════════════════════════════════════════
 async function launchApp() {
-  await loadProgressFromServer();
+  await Promise.all([loadProgressFromServer(), loadCurrentSemester()]);
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('instructorLoginScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
