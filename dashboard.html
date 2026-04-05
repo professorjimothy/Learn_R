@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0e1a">
+<title>Learn R — Instructor Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #0a0e1a;
+  --bg2: #0f1525;
+  --surface: #141928;
+  --surface2: #1a2035;
+  --border: #252d45;
+  --border2: #2e3850;
+  --accent: #4f9cf9;
+  --green: #22d3a0;
+  --yellow: #fbbf24;
+  --red: #ef4444;
+  --orange: #f97316;
+  --purple: #a78bfa;
+  --text: #e8edf8;
+  --text2: #8899bb;
+  --text3: #4a5878;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; -webkit-font-smoothing: antialiased; }
+
+/* ── AUTH ── */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
+.auth-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border2); border-radius: 20px; padding: 36px 32px; }
+.auth-logo { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+.auth-logo span { color: var(--accent); }
+.auth-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
+.auth-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; display: block; }
+.auth-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 13px 14px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; margin-bottom: 16px; }
+.auth-input:focus { border-color: var(--accent); }
+.auth-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), #3b82f6); border: none; border-radius: 12px; color: white; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+.auth-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 12px; font-size: 13px; color: #fca5a5; margin-bottom: 14px; display: none; }
+
+/* ── DASHBOARD ── */
+.dashboard { display: none; }
+
+.dash-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.dash-logo { font-size: 20px; font-weight: 800; }
+.dash-logo span { color: var(--accent); }
+.dash-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; background: rgba(79,156,249,0.1); border: 1px solid rgba(79,156,249,0.3); border-radius: 6px; padding: 4px 10px; color: var(--accent); }
+.dash-signout { background: none; border: 1px solid var(--border2); border-radius: 8px; padding: 8px 16px; color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; }
+
+.dash-body { padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+/* Stats bar */
+.stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.stat-val { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 6px; }
+.stat-label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+
+/* Section */
+.section { margin-bottom: 32px; }
+.section-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text3); margin-bottom: 16px; }
+
+/* Leaderboard table */
+.lb-table { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.lb-table-header { display: grid; grid-template-columns: 48px 1fr 120px 120px 140px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.lb-table-header span { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); }
+.lb-row { display: grid; grid-template-columns: 48px 1fr 120px 120px 140px; padding: 14px 20px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.15s; }
+.lb-row:last-child { border-bottom: none; }
+.lb-row:hover { background: var(--surface2); }
+.lb-rank { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+.lb-rank.g1 { color: var(--yellow); } .lb-rank.g2 { color: #94a3b8; } .lb-rank.g3 { color: #cd7c2f; } .lb-rank.gn { color: var(--text3); }
+.lb-user { display: flex; align-items: center; gap: 12px; }
+.lb-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--green)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: white; flex-shrink: 0; }
+.lb-username { font-size: 14px; font-weight: 600; }
+.lb-xp-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--yellow); font-weight: 600; }
+.lb-levels-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--green); }
+.lb-joined { font-size: 12px; color: var(--text3); }
+
+/* Progress breakdown */
+.progress-table { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.progress-header { display: grid; grid-template-columns: 1fr 140px 160px 140px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.progress-header span { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); }
+.progress-row { display: grid; grid-template-columns: 1fr 140px 160px 140px; padding: 14px 20px; border-bottom: 1px solid var(--border); align-items: center; cursor: pointer; transition: background 0.15s; }
+.progress-row:last-child { border-bottom: none; }
+.progress-row:hover { background: var(--surface2); }
+.progress-name { font-size: 14px; font-weight: 600; }
+.progress-bar-wrap { display: flex; align-items: center; gap: 10px; }
+.mini-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.mini-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 3px; }
+.mini-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text3); min-width: 32px; }
+.tier-dots { display: flex; gap: 4px; }
+.tier-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.tier-dot.t1d { background: var(--accent); } .tier-dot.t2d { background: var(--green); } .tier-dot.t3d { background: var(--purple); } .tier-dot.t4d { background: var(--orange); } .tier-dot.t5d { background: var(--yellow); }
+.last-active { font-size: 12px; color: var(--text3); }
+
+/* Detail panel */
+.detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-top: 16px; display: none; }
+.detail-panel.open { display: block; }
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.detail-name { font-size: 20px; font-weight: 700; }
+.detail-close { background: none; border: 1px solid var(--border2); border-radius: 8px; padding: 6px 12px; color: var(--text3); cursor: pointer; font-size: 13px; font-family: 'Outfit', sans-serif; }
+.detail-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.detail-tier { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.detail-tier-name { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.detail-level { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text3); }
+.detail-level:last-child { border-bottom: none; }
+.detail-level.done { color: var(--green); }
+.detail-check { font-size: 14px; }
+
+/* Refresh btn */
+.refresh-btn { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13px; color: var(--text2); cursor: pointer; font-family: 'Outfit', sans-serif; margin-bottom: 16px; }
+
+.empty-state { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
+
+@media (max-width: 768px) {
+  .stats-bar { grid-template-columns: 1fr 1fr; }
+  .lb-table-header, .lb-row { grid-template-columns: 36px 1fr 80px 80px; }
+  .lb-table-header span:nth-child(5), .lb-row > *:nth-child(5) { display: none; }
+  .progress-header, .progress-row { grid-template-columns: 1fr 100px 120px; }
+  .progress-header span:nth-child(4), .progress-row > *:nth-child(4) { display: none; }
+  .detail-grid { grid-template-columns: 1fr 1fr; }
+  .dash-body { padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Auth -->
+<div class="auth-wrap" id="authWrap">
+  <div class="auth-card">
+    <div class="auth-logo">Learn <span>R</span></div>
+    <div class="auth-sub">Instructor Dashboard — restricted access</div>
+    <div class="auth-error" id="authErr"></div>
+    <label class="auth-label">Instructor Password</label>
+    <input class="auth-input" id="pwInput" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') checkPw()">
+    <button class="auth-btn" onclick="checkPw()">Access Dashboard →</button>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard" id="dashWrap">
+  <div class="dash-header">
+    <div>
+      <div class="dash-logo">Learn <span>R</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="dash-badge">🎓 Instructor View</div>
+      <button class="dash-signout" onclick="signOut()">← Back to App</button>
+    </div>
+  </div>
+
+  <div class="dash-body">
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-val" id="totalStudents">—</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="totalXP">—</div>
+        <div class="stat-label">Total XP Earned</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="totalLevels">—</div>
+        <div class="stat-label">Levels Completed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="avgXP">—</div>
+        <div class="stat-label">Avg XP per Student</div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="section">
+      <div class="section-title">Leaderboard Rankings</div>
+      <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh Data</button>
+      <div class="lb-table" id="lbTable">
+        <div class="lb-table-header">
+          <span>Rank</span><span>Student</span><span>Total XP</span><span>Levels Done</span><span>Joined</span>
+        </div>
+        <div id="lbBody"><div class="empty-state">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Progress Breakdown -->
+    <div class="section">
+      <div class="section-title">Student Progress by Tier</div>
+      <div class="progress-table" id="progressTable">
+        <div class="progress-header">
+          <span>Student</span><span>Overall Progress</span><span>Tiers Started</span><span>Last Active</span>
+        </div>
+        <div id="progressBody"><div class="empty-state">Loading...</div></div>
+      </div>
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+          <div class="detail-name" id="detailName">Student</div>
+          <button class="detail-close" onclick="closeDetail()">Close ✕</button>
+        </div>
+        <div class="detail-grid" id="detailGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
+const INSTRUCTOR_PASSWORD = 'YOUR_INSTRUCTOR_PASSWORD';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Tier/skill/level structure for progress display
+const TIER_STRUCTURE = [
+  { name: 'Tier 1', color: 'var(--accent)', dot: 't1d', skills: [
+    { name: 'Variables', levels: 3 }, { name: 'Vectors', levels: 3 },
+    { name: 'Functions', levels: 3 }, { name: 'Control Flow', levels: 3 },
+    { name: 'Data Frames', levels: 3 }
+  ]},
+  { name: 'Tier 2', color: 'var(--green)', dot: 't2d', skills: [{ name: 'Data Cleaning', levels: 1 }] },
+  { name: 'Tier 3', color: 'var(--purple)', dot: 't3d', skills: [{ name: 'Visualization', levels: 1 }] },
+  { name: 'Tier 4', color: 'var(--orange)', dot: 't4d', skills: [{ name: 'Econometrics', levels: 1 }] },
+  { name: 'Tier 5', color: 'var(--yellow)', dot: 't5d', skills: [{ name: 'Tidyverse', levels: 1 }] }
+];
+
+const TOTAL_LEVELS = TIER_STRUCTURE.reduce((s,t) => s + t.skills.reduce((ss,sk) => ss + sk.levels, 0), 0);
+
+let allStudents = [];
+let allProgress = [];
+
+window.checkPw = function() {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === INSTRUCTOR_PASSWORD) {
+    document.getElementById('authWrap').style.display = 'none';
+    document.getElementById('dashWrap').style.display = 'block';
+    loadDashboard();
+  } else {
+    const err = document.getElementById('authErr');
+    err.textContent = 'Incorrect password.';
+    err.style.display = 'block';
+  }
+};
+
+window.signOut = function() {
+  window.location.href = 'index.html';
+};
+
+window.loadDashboard = async function() {
+  // Load all profiles
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('is_instructor', false)
+    .order('total_xp', { ascending: false });
+
+  allStudents = profiles || [];
+
+  // Load all progress
+  const { data: progress } = await supabase
+    .from('progress')
+    .select('*')
+    .eq('complete', true);
+
+  allProgress = progress || [];
+
+  // Update stats
+  const totalXP = allStudents.reduce((s,u) => s + (u.total_xp||0), 0);
+  const totalLevels = allStudents.reduce((s,u) => s + (u.levels_complete||0), 0);
+  const avgXP = allStudents.length ? Math.round(totalXP / allStudents.length) : 0;
+
+  document.getElementById('totalStudents').textContent = allStudents.length;
+  document.getElementById('totalXP').textContent = totalXP.toLocaleString();
+  document.getElementById('totalLevels').textContent = totalLevels;
+  document.getElementById('avgXP').textContent = avgXP.toLocaleString();
+
+  renderLeaderboard();
+  renderProgress();
+};
+
+function renderLeaderboard() {
+  const body = document.getElementById('lbBody');
+  if (!allStudents.length) { body.innerHTML = '<div class="empty-state">No students yet. Share the app URL with your class!</div>'; return; }
+  body.innerHTML = allStudents.map((s, i) => {
+    const rankClass = i === 0 ? 'g1' : i === 1 ? 'g2' : i === 2 ? 'g3' : 'gn';
+    const rankSymbol = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const joined = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
+    return `
+      <div class="lb-row">
+        <div class="lb-rank ${rankClass}">${rankSymbol}</div>
+        <div class="lb-user">
+          <div class="lb-avatar">${s.username[0].toUpperCase()}</div>
+          <div class="lb-username">${s.username}</div>
+        </div>
+        <div class="lb-xp-val">${(s.total_xp||0).toLocaleString()}</div>
+        <div class="lb-levels-val">${s.levels_complete||0}</div>
+        <div class="lb-joined">${joined}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderProgress() {
+  const body = document.getElementById('progressBody');
+  if (!allStudents.length) { body.innerHTML = '<div class="empty-state">No students yet.</div>'; return; }
+
+  body.innerHTML = allStudents.map((s, i) => {
+    const studentProgress = allProgress.filter(p => p.user_id === s.id);
+    const pct = TOTAL_LEVELS ? Math.round((s.levels_complete||0) / TOTAL_LEVELS * 100) : 0;
+
+    // Which tiers have any progress
+    const tierDots = TIER_STRUCTURE.map((t, ti) => {
+      const hasProgress = studentProgress.some(p => p.level_key.startsWith(`t${ti}_`));
+      return `<div class="tier-dot ${hasProgress ? t.dot : ''}" title="${t.name}"></div>`;
+    }).join('');
+
+    // Last active — most recent completed_at
+    const dates = studentProgress.filter(p => p.completed_at).map(p => new Date(p.completed_at));
+    const lastActive = dates.length ? new Date(Math.max(...dates)).toLocaleDateString() : 'No activity';
+
+    return `
+      <div class="progress-row" onclick="showDetail('${s.id}', '${s.username}')">
+        <div class="progress-name">${s.username}</div>
+        <div class="progress-bar-wrap">
+          <div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div>
+          <div class="mini-pct">${pct}%</div>
+        </div>
+        <div class="tier-dots">${tierDots}</div>
+        <div class="last-active">${lastActive}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.showDetail = function(userId, username) {
+  const panel = document.getElementById('detailPanel');
+  const studentProgress = allProgress.filter(p => p.user_id === userId);
+  document.getElementById('detailName').textContent = username;
+
+  const grid = document.getElementById('detailGrid');
+  let tIdx = 0;
+  grid.innerHTML = TIER_STRUCTURE.map((tier, ti) => {
+    const levels = [];
+    let sIdx = 0;
+    tier.skills.forEach(skill => {
+      for (let li = 0; li < skill.levels; li++) {
+        const key = `t${ti}_s${sIdx}_l${li}`;
+        const done = studentProgress.some(p => p.level_key === key);
+        levels.push(`<div class="detail-level ${done?'done':''}"><span class="detail-check">${done?'✓':'○'}</span>${skill.name} L${li+1}</div>`);
+      }
+      sIdx++;
+    });
+    return `
+      <div class="detail-tier">
+        <div class="detail-tier-name" style="color:${tier.color}">${tier.name}</div>
+        ${levels.join('')}
+      </div>
+    `;
+  }).join('');
+
+  panel.classList.add('open');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.closeDetail = function() {
+  document.getElementById('detailPanel').classList.remove('open');
+};
+
+// Enter key on password
+document.getElementById('pwInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.checkPw();
+});
+</script>
+</body>
+</html>
