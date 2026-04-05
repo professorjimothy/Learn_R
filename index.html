@@ -294,7 +294,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 .ex-title-row { display: flex; align-items: center; justify-content: space-between; }
 .ex-level-label { font-size: 13px; font-weight: 600; color: var(--text); }
 .ex-xp-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--yellow); background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); border-radius: 6px; padding: 3px 8px; }
-.ex-content { padding: 20px; overflow-y: auto; height: calc(100vh - 140px); }
+.ex-content { padding: 20px 20px 100px 20px; overflow-y: auto; height: calc(100vh - 120px); }
 
 .concept-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
 .concept-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
@@ -408,7 +408,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 </div>
 
 <!-- ── AUTH SCREEN ── -->
-<div id="authScreen">
+<div id="authScreen" style="display:block">
   <div class="auth-screen">
     <div class="auth-logo">Learn <span>R</span></div>
     <div class="auth-tagline">Write real code. See real output. Build real skills.</div>
@@ -600,7 +600,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 // ══════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
-const INSTRUCTOR_PASSWORD = 'Emmy0917!';
+const INSTRUCTOR_PASSWORD = 'YOUR_INSTRUCTOR_PASSWORD';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -655,14 +655,14 @@ let currentUser = null;
 let currentProfile = null;
 
 function showAuthScreen() {
-  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('authScreen').style.display = 'block';
   document.getElementById('instructorLoginScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'none';
 }
 
 function showInstructorLogin() {
   document.getElementById('authScreen').style.display = 'none';
-  document.getElementById('instructorLoginScreen').style.display = 'flex';
+  document.getElementById('instructorLoginScreen').style.display = 'block';
 }
 
 function switchAuthTab(tab) {
@@ -787,12 +787,17 @@ async function loadProgressFromServer() {
   if (data) {
     localProgress = {};
     data.forEach(row => {
-      localProgress[row.level_key] = { xp: row.xp, complete: row.complete };
+      localProgress[row.level_key] = {
+        xp: row.xp,
+        complete: row.complete,
+        ex_done: row.ex_done || 0,        // which exercise index they reached
+        ex_awarded: row.ex_awarded || []   // which exercise indices already got XP
+      };
     });
   }
 }
 
-async function syncProgressToServer(levelKey, xp, complete) {
+async function syncProgressToServer(levelKey, xp, complete, exDone, exAwarded) {
   if (!currentUser) return;
   showSync();
   try {
@@ -802,6 +807,8 @@ async function syncProgressToServer(levelKey, xp, complete) {
       level_key: levelKey,
       xp,
       complete,
+      ex_done: exDone || 0,
+      ex_awarded: exAwarded || [],
       completed_at: complete ? new Date().toISOString() : null
     }, { onConflict: 'user_id,level_key' });
 
@@ -1178,10 +1185,18 @@ function showSkill(tIdx, sIdx) {
 // ══════════════════════════════════════════════════════
 function startLevel(tIdx, sIdx, lIdx) {
   currentTierIdx = tIdx; currentSkillIdx = sIdx; currentLevelIdx = lIdx;
-  currentExIdx = 0;
   currentExercises = TIERS[tIdx].skills[sIdx].levels[lIdx].exercises;
   currentLevelKey = getLevelKey(tIdx, sIdx, lIdx);
   feedbackShown = false;
+
+  // Resume from saved position if available
+  const saved = localProgress[currentLevelKey];
+  if (saved && saved.ex_done > 0 && !saved.complete) {
+    currentExIdx = Math.min(saved.ex_done, currentExercises.length - 1);
+  } else {
+    currentExIdx = 0;
+  }
+
   document.getElementById('exLevelLabel').textContent = `${TIERS[tIdx].skills[sIdx].name} · Level ${lIdx+1}`;
   const xpPer = Math.round(TIERS[tIdx].skills[sIdx].levels[lIdx].xpPer * TIERS[tIdx].xpMult);
   document.getElementById('exXpBadge').textContent = `+${xpPer} XP per exercise`;
@@ -1251,25 +1266,54 @@ function checkAnswer(output) {
   feedbackShown = true;
   const feedback = document.getElementById('feedbackArea');
   const nextArea = document.getElementById('nextArea');
+
   if (correct) {
     const tier = TIERS[currentTierIdx];
     const level = tier.skills[currentSkillIdx].levels[currentLevelIdx];
     const xpEarned = Math.round(level.xpPer * tier.xpMult);
-    if (!localProgress[currentLevelKey]) localProgress[currentLevelKey] = { xp: 0 };
-    localProgress[currentLevelKey].xp = (localProgress[currentLevelKey].xp || 0) + xpEarned;
+
+    // Only award XP if this exercise hasn't been awarded already
+    if (!localProgress[currentLevelKey]) localProgress[currentLevelKey] = { xp: 0, ex_done: 0, ex_awarded: [] };
+    const alreadyAwarded = (localProgress[currentLevelKey].ex_awarded || []).includes(currentExIdx);
+
+    if (!alreadyAwarded) {
+      localProgress[currentLevelKey].xp = (localProgress[currentLevelKey].xp || 0) + xpEarned;
+      localProgress[currentLevelKey].ex_awarded = [...(localProgress[currentLevelKey].ex_awarded || []), currentExIdx];
+      // Save position progress to server
+      syncProgressToServer(
+        currentLevelKey,
+        localProgress[currentLevelKey].xp,
+        false,
+        currentExIdx + 1,
+        localProgress[currentLevelKey].ex_awarded
+      );
+    }
+
     updateStreak();
-    feedback.innerHTML = `<div class="feedback-correct"><div class="feedback-icon">✓</div><div class="feedback-text"><strong>Correct! +${xpEarned} XP</strong>Great work. Move on when ready.</div></div>`;
+    const displayXP = alreadyAwarded ? 0 : xpEarned;
+    feedback.innerHTML = `<div class="feedback-correct"><div class="feedback-icon">✓</div><div class="feedback-text"><strong>Correct!${displayXP > 0 ? ` +${displayXP} XP` : ''}</strong>Great work. Move on when ready.</div></div>`;
     nextArea.innerHTML = `<button class="next-btn" onclick="nextExercise()">Next Exercise →</button>`;
   } else {
-    feedback.innerHTML = `<div class="feedback-wrong"><div class="feedback-icon">✗</div><div class="feedback-text"><strong>Not quite right</strong>Check your output against the task. Use the Hint if you\'re stuck.</div></div>`;
+    feedback.innerHTML = `<div class="feedback-wrong"><div class="feedback-icon">✗</div><div class="feedback-text"><strong>Not quite right</strong>Check your output against the task. Use the Hint if you're stuck.</div></div>`;
     nextArea.innerHTML = `<button class="run-btn" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2)" onclick="tryAgain()">Try Again</button>`;
   }
 }
 
-function tryAgain() { feedbackShown = false; document.getElementById('feedbackArea').innerHTML = ''; document.getElementById('nextArea').innerHTML = ''; }
+function tryAgain() {
+  // Fully reset so the next Run call will check the answer again
+  feedbackShown = false;
+  document.getElementById('feedbackArea').innerHTML = '';
+  document.getElementById('nextArea').innerHTML = '';
+  // Re-focus the editor
+  const editor = document.getElementById('codeEditor');
+  if (editor) editor.focus();
+}
 
 function nextExercise() {
   currentExIdx++;
+  // Save updated position
+  if (!localProgress[currentLevelKey]) localProgress[currentLevelKey] = { xp: 0, ex_done: 0, ex_awarded: [] };
+  localProgress[currentLevelKey].ex_done = currentExIdx;
   if (currentExIdx >= currentExercises.length) { completedLevel(); }
   else { renderExercise(); window.scrollTo(0,0); }
 }
@@ -1279,10 +1323,17 @@ async function completedLevel() {
   const level = tier.skills[currentSkillIdx].levels[currentLevelIdx];
   const bonusXP = Math.round(level.bonusXP * tier.xpMult);
   const totalXPEarned = Math.round((level.exercises.length * level.xpPer + level.bonusXP) * tier.xpMult);
-  if (!localProgress[currentLevelKey]) localProgress[currentLevelKey] = { xp: 0 };
+  if (!localProgress[currentLevelKey]) localProgress[currentLevelKey] = { xp: 0, ex_done: 0, ex_awarded: [] };
   localProgress[currentLevelKey].complete = true;
   localProgress[currentLevelKey].xp = (localProgress[currentLevelKey].xp || 0) + bonusXP;
-  await syncProgressToServer(currentLevelKey, localProgress[currentLevelKey].xp, true);
+  localProgress[currentLevelKey].ex_done = currentExercises.length;
+  await syncProgressToServer(
+    currentLevelKey,
+    localProgress[currentLevelKey].xp,
+    true,
+    currentExercises.length,
+    localProgress[currentLevelKey].ex_awarded || []
+  );
   document.getElementById('modalEmoji').textContent = currentLevelIdx === 0 ? '🎯' : currentLevelIdx === 1 ? '🔥' : '⭐';
   document.getElementById('modalTitle').textContent = 'Level Complete!';
   document.getElementById('modalSub').textContent = `${tier.skills[currentSkillIdx].name} · Level ${currentLevelIdx + 1}`;
