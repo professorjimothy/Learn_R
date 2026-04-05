@@ -610,7 +610,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 // ══════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
-const INSTRUCTOR_PASSWORD = 'Emmy0917!';
+const INSTRUCTOR_PASSWORD = 'JrhnAlh0705!';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -644,10 +644,15 @@ async function initWebR() {
 async function runR(code) {
   if (!webrReady) return { output: 'R is still loading — please wait a moment and try again.', error: true };
   try {
+    // Wrap each top-level expression in print() so all outputs show,
+    // matching how RStudio handles script execution
     const result = await webR.evalRString(`
       local({
         output <- capture.output({
-          tryCatch({ ${code} }, error = function(e) cat("Error:", conditionMessage(e)))
+          tryCatch({
+            # Source the code with echo=FALSE but auto-print results
+            eval(parse(text=${JSON.stringify(code)}), envir=new.env(parent=globalenv()))
+          }, error = function(e) cat("Error:", conditionMessage(e)))
         })
         paste(output, collapse="\\n")
       })
@@ -968,7 +973,7 @@ const TIERS = [
         { id: 'l2', name: 'Type Conversion', xpPer: 10, bonusXP: 75, exercises: [
           { concept: 'R can <strong>convert between data types</strong> using <code>as.numeric()</code>, <code>as.character()</code>, and <code>as.logical()</code>. This is critical when data arrives in the wrong format.', example: { code: `x <- "42"\nclass(x)\nx_num <- as.numeric(x)\nclass(x_num)`, output: '[1] "character"\n[1] "numeric"' }, task: 'Create <code>price <- "29.99"</code>. Convert it to numeric using <code>as.numeric()</code>, store as <code>price_num</code>, and print it.', hint: 'Use <code>price_num <- as.numeric(price)</code> then <code>print(price_num)</code>.', check: (o) => o.includes('29.99'), starter: 'price <- "29.99"\n' },
           { concept: 'Converting numbers to characters with <code>as.character()</code> turns them into text. Useful when combining numbers and text with <code>paste()</code>.', example: { code: `year <- 2024\nyear_text <- as.character(year)\npaste("Year:", year_text)`, output: '[1] "Year: 2024"' }, task: 'Create <code>obs <- 1250</code>. Convert it to character and store as <code>obs_text</code>. Then use <code>paste("N =", obs_text)</code>.', hint: 'First <code>obs_text <- as.character(obs)</code>, then <code>paste("N =", obs_text)</code>.', check: (o) => o.includes('1250'), starter: 'obs <- 1250\n' },
-          { concept: 'In R, <code>0</code> converts to <code>FALSE</code> and any non-zero number converts to <code>TRUE</code> when using <code>as.logical()</code>. Conversely, <code>TRUE</code> is <code>1</code> and <code>FALSE</code> is <code>0</code>.', example: { code: `as.logical(0)\nas.logical(1)\nas.numeric(TRUE)`, output: '[1] FALSE\n[1] TRUE\n[1] 1' }, task: 'Create <code>flag <- FALSE</code>. Convert it to numeric and print. Then convert <code>5</code> to logical and print.', hint: 'Run <code>as.numeric(flag)</code> then <code>as.logical(5)</code>.', check: (o) => o.includes('0') && o.includes('TRUE'), starter: 'flag <- FALSE\n' },
+          { concept: 'In R, <code>0</code> converts to <code>FALSE</code> and any non-zero number converts to <code>TRUE</code> when using <code>as.logical()</code>. Conversely, <code>TRUE</code> is <code>1</code> and <code>FALSE</code> is <code>0</code> when converted to numeric.', example: { code: `as.logical(0)\nas.logical(1)\nas.numeric(TRUE)`, output: '[1] FALSE\n[1] TRUE\n[1] 1' }, task: 'Create <code>flag <- FALSE</code>. Use <code>print(as.numeric(flag))</code> to print the numeric version. Then use <code>print(as.logical(5))</code> to print the logical version of 5.', hint: '<code>print(as.numeric(flag))</code> should output 0. <code>print(as.logical(5))</code> should output TRUE.', check: (o) => o.includes('0') && o.includes('TRUE'), starter: 'flag <- FALSE\n' },
           { concept: 'When conversion <strong>fails</strong>, R produces <code>NA</code> — R\'s symbol for missing data. Trying to convert the word "hello" to numeric gives <code>NA</code> with a warning.', example: { code: `bad <- as.numeric("hello")\nprint(bad)\nis.na(bad)`, output: '[1] NA\n[1] TRUE' }, task: 'Try converting <code>"unemployment"</code> to numeric. Store as <code>bad_num</code>. Then use <code>is.na(bad_num)</code> to confirm it produced NA.', hint: '<code>bad_num <- as.numeric("unemployment")</code> then <code>is.na(bad_num)</code>.', check: (o) => o.includes('TRUE'), starter: '' },
           { concept: '<code>nchar()</code> counts characters in a string. <code>toupper()</code> and <code>tolower()</code> change text case.', example: { code: `state <- "North Carolina"\nnchar(state)\ntoupper(state)`, output: '[1] 14\n[1] "NORTH CAROLINA"' }, task: 'Create <code>var_name <- "GrossDomesticProduct"</code>. Use <code>nchar()</code> to find its length, then <code>tolower()</code> to convert it to lowercase.', hint: 'Run <code>nchar(var_name)</code> then <code>tolower(var_name)</code>.', check: (o) => o.includes('20') && o.includes('grossdomesticproduct'), starter: 'var_name <- "GrossDomesticProduct"\n' }
         ]},
