@@ -358,6 +358,10 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
 .lb-empty { text-align: center; padding: 40px 24px; color: var(--text3); font-size: 14px; }
 .lb-refresh { margin: 16px 24px 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 13px; color: var(--text2); cursor: pointer; font-family: 'Outfit', sans-serif; }
 
+.lb-tabs { display: flex; background: var(--surface2); border-radius: 10px; padding: 4px; gap: 4px; margin-top: 16px; }
+.lb-tab { flex: 1; padding: 9px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text3); transition: all 0.2s; border: none; background: none; font-family: 'Outfit', sans-serif; }
+.lb-tab.active { background: var(--surface3); color: var(--text); border: 1px solid var(--border2); }
+
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; align-items: center; justify-content: center; padding: 24px; }
 .modal-overlay.open { display: flex; }
@@ -549,6 +553,12 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Outfit', s
       <div class="lb-title">Leaderboard</div>
       <div class="lb-sub">Class rankings · live from server</div>
     </div>
+    <div style="padding: 0 24px; margin-bottom: 4px;">
+      <div class="lb-tabs">
+        <button class="lb-tab active" id="lbTabSemester" onclick="switchLbTab('semester')">This Semester</button>
+        <button class="lb-tab" id="lbTabAllTime" onclick="switchLbTab('alltime')">All Time</button>
+      </div>
+    </div>
     <div class="lb-refresh" onclick="loadLeaderboard()">↻ Refresh rankings</div>
     <div style="height:16px"></div>
     <div class="lb-list" id="lbList"></div>
@@ -688,7 +698,7 @@ async function handleSignIn() {
   btn.disabled = true; btn.textContent = 'Signing in...';
 
   // Use username as email prefix
-  const email = `${username}@learnr.app`;
+  const email = `${username}@learn-r.edu`;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -724,7 +734,7 @@ async function handleSignUp() {
     return;
   }
 
-  const email = `${username}@learnr.app`;
+  const email = `${username}@learn-r.edu`;
   const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
@@ -741,7 +751,8 @@ async function handleSignUp() {
     username,
     total_xp: 0,
     levels_complete: 0,
-    is_instructor: false
+    is_instructor: false,
+    semester: CURRENT_SEMESTER
   });
 
   await loadProfile();
@@ -862,18 +873,34 @@ function updateStreak() {
 // ══════════════════════════════════════════════════════
 // LEADERBOARD
 // ══════════════════════════════════════════════════════
+const CURRENT_SEMESTER = '2026-Fall';
+let currentLbTab = 'semester';
+
+function switchLbTab(tab) {
+  currentLbTab = tab;
+  document.getElementById('lbTabSemester').classList.toggle('active', tab === 'semester');
+  document.getElementById('lbTabAllTime').classList.toggle('active', tab === 'alltime');
+  loadLeaderboard();
+}
+
 async function loadLeaderboard() {
   const list = document.getElementById('lbList');
   list.innerHTML = '<div class="lb-empty">Loading rankings...</div>';
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
-      .select('username, total_xp, levels_complete')
+      .select('username, total_xp, levels_complete, semester')
       .order('total_xp', { ascending: false })
       .limit(25);
 
+    if (currentLbTab === 'semester') {
+      query = query.eq('semester', CURRENT_SEMESTER);
+    }
+
+    const { data, error } = await query;
+
     if (error || !data || data.length === 0) {
-      list.innerHTML = '<div class="lb-empty">No rankings yet. Complete a level to appear here!</div>';
+      list.innerHTML = `<div class="lb-empty">${currentLbTab === 'semester' ? 'No rankings yet this semester. Complete a level to appear here!' : 'No rankings yet.'}</div>`;
       return;
     }
 
@@ -1379,6 +1406,7 @@ window.startLevel = startLevel;
 window.exitExercise = exitExercise;
 window.closeModal = closeModal;
 window.loadLeaderboard = loadLeaderboard;
+window.switchLbTab = switchLbTab;
 window.runCode = runCode;
 window.nextExercise = nextExercise;
 window.tryAgain = tryAgain;

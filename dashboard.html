@@ -122,6 +122,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 /* Refresh btn */
 .refresh-btn { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13px; color: var(--text2); cursor: pointer; font-family: 'Outfit', sans-serif; margin-bottom: 16px; }
 
+.filter-btn { padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.filter-btn.active { background: var(--surface2); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
 .empty-state { text-align: center; padding: 48px; color: var(--text3); font-size: 14px; }
 
 @media (max-width: 768px) {
@@ -185,7 +188,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
     <!-- Leaderboard -->
     <div class="section">
       <div class="section-title">Leaderboard Rankings</div>
-      <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh Data</button>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="filter-btn active" id="filterSemester" onclick="setFilter('semester')">This Semester (2026-Fall)</button>
+        <button class="filter-btn" id="filterAllTime" onclick="setFilter('alltime')">All Time</button>
+      </div>
       <div class="lb-table" id="lbTable">
         <div class="lb-table-header">
           <span>Rank</span><span>Student</span><span>Total XP</span><span>Levels Done</span><span>Joined</span>
@@ -219,7 +225,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://kaozvhzrkstkihjbrlgj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3p2aHpya3N0a2loamJybGdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDc3NDksImV4cCI6MjA5MDkyMzc0OX0.d3LTJk2uS3qrMwU_fGYwi5pI4LgGDOX_xXzECMAVZVA';
-const INSTRUCTOR_PASSWORD = 'Emmy0917!';
+const INSTRUCTOR_PASSWORD = 'YOUR_INSTRUCTOR_PASSWORD';
+const CURRENT_SEMESTER = '2026-Fall';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -240,6 +247,16 @@ const TOTAL_LEVELS = TIER_STRUCTURE.reduce((s,t) => s + t.skills.reduce((ss,sk) 
 
 let allStudents = [];
 let allProgress = [];
+let currentFilter = 'semester';
+
+window.setFilter = function(filter) {
+  currentFilter = filter;
+  document.getElementById('filterSemester').classList.toggle('active', filter === 'semester');
+  document.getElementById('filterAllTime').classList.toggle('active', filter === 'alltime');
+  updateStats();
+  renderLeaderboard();
+  renderProgress();
+};
 
 window.checkPw = function() {
   const pw = document.getElementById('pwInput').value;
@@ -259,7 +276,6 @@ window.signOut = function() {
 };
 
 window.loadDashboard = async function() {
-  // Load all profiles
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
@@ -268,7 +284,6 @@ window.loadDashboard = async function() {
 
   allStudents = profiles || [];
 
-  // Load all progress
   const { data: progress } = await supabase
     .from('progress')
     .select('*')
@@ -276,24 +291,36 @@ window.loadDashboard = async function() {
 
   allProgress = progress || [];
 
-  // Update stats
-  const totalXP = allStudents.reduce((s,u) => s + (u.total_xp||0), 0);
-  const totalLevels = allStudents.reduce((s,u) => s + (u.levels_complete||0), 0);
-  const avgXP = allStudents.length ? Math.round(totalXP / allStudents.length) : 0;
-
-  document.getElementById('totalStudents').textContent = allStudents.length;
-  document.getElementById('totalXP').textContent = totalXP.toLocaleString();
-  document.getElementById('totalLevels').textContent = totalLevels;
-  document.getElementById('avgXP').textContent = avgXP.toLocaleString();
-
+  updateStats();
   renderLeaderboard();
   renderProgress();
 };
 
+function getFiltered() {
+  return currentFilter === 'semester'
+    ? allStudents.filter(s => s.semester === CURRENT_SEMESTER)
+    : allStudents;
+}
+
+function updateStats() {
+  const filtered = getFiltered();
+  const totalXP = filtered.reduce((s,u) => s + (u.total_xp||0), 0);
+  const totalLevels = filtered.reduce((s,u) => s + (u.levels_complete||0), 0);
+  const avgXP = filtered.length ? Math.round(totalXP / filtered.length) : 0;
+  document.getElementById('totalStudents').textContent = filtered.length;
+  document.getElementById('totalXP').textContent = totalXP.toLocaleString();
+  document.getElementById('totalLevels').textContent = totalLevels;
+  document.getElementById('avgXP').textContent = avgXP.toLocaleString();
+}
+
 function renderLeaderboard() {
   const body = document.getElementById('lbBody');
-  if (!allStudents.length) { body.innerHTML = '<div class="empty-state">No students yet. Share the app URL with your class!</div>'; return; }
-  body.innerHTML = allStudents.map((s, i) => {
+  const filtered = getFiltered();
+  if (!filtered.length) {
+    body.innerHTML = `<div class="empty-state">${currentFilter === 'semester' ? 'No students this semester yet.' : 'No students yet.'}</div>`;
+    return;
+  }
+  body.innerHTML = filtered.map((s, i) => {
     const rankClass = i === 0 ? 'g1' : i === 1 ? 'g2' : i === 2 ? 'g3' : 'gn';
     const rankSymbol = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
     const joined = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
@@ -302,7 +329,7 @@ function renderLeaderboard() {
         <div class="lb-rank ${rankClass}">${rankSymbol}</div>
         <div class="lb-user">
           <div class="lb-avatar">${s.username[0].toUpperCase()}</div>
-          <div class="lb-username">${s.username}</div>
+          <div class="lb-username">${s.username}${s.semester && s.semester !== CURRENT_SEMESTER ? ` <span style="font-size:10px;color:var(--text3)">(${s.semester})</span>` : ''}</div>
         </div>
         <div class="lb-xp-val">${(s.total_xp||0).toLocaleString()}</div>
         <div class="lb-levels-val">${s.levels_complete||0}</div>
@@ -314,19 +341,18 @@ function renderLeaderboard() {
 
 function renderProgress() {
   const body = document.getElementById('progressBody');
-  if (!allStudents.length) { body.innerHTML = '<div class="empty-state">No students yet.</div>'; return; }
+  const filtered = getFiltered();
+  if (!filtered.length) { body.innerHTML = '<div class="empty-state">No students yet.</div>'; return; }
 
-  body.innerHTML = allStudents.map((s, i) => {
+  body.innerHTML = filtered.map((s, i) => {
     const studentProgress = allProgress.filter(p => p.user_id === s.id);
     const pct = TOTAL_LEVELS ? Math.round((s.levels_complete||0) / TOTAL_LEVELS * 100) : 0;
 
-    // Which tiers have any progress
     const tierDots = TIER_STRUCTURE.map((t, ti) => {
       const hasProgress = studentProgress.some(p => p.level_key.startsWith(`t${ti}_`));
       return `<div class="tier-dot ${hasProgress ? t.dot : ''}" title="${t.name}"></div>`;
     }).join('');
 
-    // Last active — most recent completed_at
     const dates = studentProgress.filter(p => p.completed_at).map(p => new Date(p.completed_at));
     const lastActive = dates.length ? new Date(Math.max(...dates)).toLocaleDateString() : 'No activity';
 
